@@ -18,7 +18,7 @@ public sealed class EventStorePositionRepository : IEventStorePositionRepository
         _logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
     }
     
-    public async Task<IEventStorePosition> GetLastPosition()
+    public async Task<IEventStorePosition> GetLastPositionAsync()
     {
         try
         {
@@ -38,7 +38,7 @@ public sealed class EventStorePositionRepository : IEventStorePositionRepository
         }
     }
 
-    public async Task Save(IEventStorePosition position)
+    public async Task SaveAsync(IEventStorePosition position)
     {
         try
         {
@@ -52,13 +52,17 @@ public sealed class EventStorePositionRepository : IEventStorePositionRepository
             {
                 var evnPosition = sqlPosition.First();
                 evnPosition.UpdatePositions(position.CommitPosition, position.PreparePosition);
+                await dbContext.EventStorePositions.ExecuteUpdateAsync(p => p.SetProperty(e => e.CommitPosition, position.CommitPosition)
+                    .SetProperty(e => e.PreparePosition, position.PreparePosition))
+                    .ConfigureAwait(false);
             }
             else
             {
                 var newPosition = Dtos.EventStorePosition.Create(position.CommitPosition, position.PreparePosition);
-                dbContext.EventStorePositions.Add(newPosition);                
+                dbContext.EventStorePositions.Add(newPosition);
+                await dbContext.SaveChangesAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
             }
-            await dbContext.SaveChangesAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {

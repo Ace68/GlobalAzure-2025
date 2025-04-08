@@ -34,6 +34,12 @@ public static class AzureServiceBusHelper
 				azureServiceBusConfiguration,
 				loggerFactory),
 			new SalesOrderCreatedConsumer(serviceProvider.GetRequiredService<ISalesOrderService>(),
+				azureServiceBusConfiguration, loggerFactory),
+			
+			new SetSalesOrderDeliveryDateConsumer(repository,
+				azureServiceBusConfiguration,
+				loggerFactory),
+			new SalesOrderDeliveryDateSetConsumer(serviceProvider.GetRequiredService<ISalesOrderService>(),
 				azureServiceBusConfiguration, loggerFactory)
 		});
 		services.AddMufloneAzureConsumers(consumers);

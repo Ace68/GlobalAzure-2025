@@ -19,10 +19,4 @@ public sealed class EventStorePosition
         CommitPosition = commitPosition;
         PreparePosition = preparePosition;
     }
-    
-    public void UpdatePositions(long commitPosition, long preparePosition)
-    {
-        CommitPosition = commitPosition;
-        PreparePosition = preparePosition;
-    }
 }

@@ -33,9 +33,8 @@ public class EventDispatcher : IHostedService
             cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("EventDispatcher started");
 
-        var position = await _eventStorePositionRepository.GetLastPosition();
-        _lastProcessed = new Position(position.CommitPosition, position.PreparePosition);
-        
+        await GetLastPositionAsync();
+
         _timer = new Timer(TimerCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
@@ -65,11 +64,12 @@ public class EventDispatcher : IHostedService
                     var readResult = facade.EventStore
                         .Where(e => e.CommitPosition > _lastProcessed.CommitPosition)
                         .ToList();
-
-                    foreach (var @event in readResult)
-                    {
-                        await PublishEvent(@event);
-                    }
+                    
+                    var @event = readResult.FirstOrDefault();
+                    if (@event == null) 
+                        return;
+                    
+                    await PublishEvent(@event);
                 }
                 catch (Exception e)
                 {
@@ -83,6 +83,18 @@ public class EventDispatcher : IHostedService
         {
             _timer.Change(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)); // Restart the timer
         }
+    }
+
+    private async Task GetLastPositionAsync()
+    {
+        var position = await _eventStorePositionRepository.GetLastPositionAsync();
+        _lastProcessed = new Position(position.CommitPosition, position.PreparePosition);
+    }
+    
+    private async Task UpdateLastPositionAsync(Position position)
+    {
+        await _eventStorePositionRepository.SaveAsync(EventStorePosition.Create(position.CommitPosition,
+            position.PreparePosition));
     }
     
     private async Task PublishEvent(EventRecord resolvedEvent)
@@ -100,7 +112,7 @@ public class EventDispatcher : IHostedService
         }
 
         _lastProcessed = new Position(resolvedEvent.CommitPosition, resolvedEvent.CommitPosition);
-        await _eventStorePositionRepository.Save(EventStorePosition.Create(_lastProcessed.CommitPosition, _lastProcessed.PreparePosition));
+        await UpdateLastPositionAsync(_lastProcessed);
     }
     
     private DomainEvent? ProcessRawEvent(EventRecord rawEvent)

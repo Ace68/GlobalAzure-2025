@@ -13,10 +13,6 @@ public static class SqlStoreHelper
             .Get<SqlOptions>()!;
         services.AddSingleton(sqlOptions);
         
-        var eventHubOptions = configuration.GetSection("Muflone:EventHub")
-            .Get<EventHubOptions>()!;
-        services.AddSingleton(eventHubOptions);
-        
         services.AddScoped<IRepository, SqlRepository>();
         services.AddHostedService<EventDispatcher>();
         

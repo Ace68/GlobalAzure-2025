@@ -1,10 +1,6 @@
 ﻿using System.Reflection;
 using System.Text;
-using Azure.Identity;
-using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
 using Muflone.Core;
-using Muflone.Persistence.Sql.Dispatcher;
 using Muflone.Persistence.Sql.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -13,17 +9,13 @@ using AggregateNotFoundException = Muflone.Core.AggregateNotFoundException;
 
 namespace Muflone.Persistence.Sql.Persistence;
 
-public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHubOptions) : IRepository
+public sealed class SqlRepository(SqlOptions sqlOptions) : IRepository
 {
     private const string EventClrTypeHeader = "EventClrTypeName";
     private const string AggregateClrTypeHeader = "AggregateClrTypeName";
     private const string CommitIdHeader = "CommitId";
     private const string CommitDateHeader = "CommitDate";
 
-    private readonly EventHubProducerClient _eventHubProducerClient = new(
-        eventHubOptions.ConnectionString,
-        eventHubOptions.EventHubName); 
-    
     private readonly Func<Type, IDomainId, string> aggregateIdToStreamName;
     private static readonly JsonSerializerSettings SerializerSettings;
 

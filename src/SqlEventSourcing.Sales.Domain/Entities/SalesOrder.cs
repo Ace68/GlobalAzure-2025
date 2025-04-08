@@ -52,26 +52,6 @@ public class SalesOrder : AggregateRoot
 		_deliveryDate = new DeliveryDate(DateTime.MaxValue);
 	}
 	
-	// private void Apply(SalesOrderCreated @event)
-	// {
-	// 	SalesOrderCreatedV2 upgradeEvent = new(@event.SalesOrderId, @event.MessageId, @event.SalesOrderNumber,
-	// 		@event.OrderDate, @event.CustomerId, @event.CustomerName, new OrderState("Open"), @event.Rows);
-	// 	Apply(upgradeEvent);
-	// }
-	
-	// private void Apply(SalesOrderCreatedV2 @event)
-	// {
-	// 	Id = @event.SalesOrderId;
-	// 	_salesOrderNumber = @event.SalesOrderNumber;
-	// 	_orderDate = @event.OrderDate;
-	// 	_customerId = @event.CustomerId;
-	// 	_customerName = @event.CustomerName;
-	// 	_rows = @event.Rows.MapToDomainRows();
-	//
-	// 	_deliveryDate = new DeliveryDate(DateTime.MaxValue);
-	// 	_orderState = @event.OrderState;
-	// }
-	
 	internal void SetDeliveryDate(DeliveryDate deliveryDate, Guid correlationId)
 	{
 		if (deliveryDate.Value < _orderDate.Value)
@@ -86,7 +66,7 @@ public class SalesOrder : AggregateRoot
 	
 	private void Apply(SalesOrderDeliveryDateSet @event)
 	{
-		//_deliveryDate = @event.DeliveryDate;
+		_deliveryDate = @event.DeliveryDate;
 	}
 	
 	private void Apply(SalesOrderDomainException @event)

@@ -4,6 +4,6 @@ namespace Muflone.Persistence.Sql.Dispatcher;
 
 public interface IEventStorePositionRepository
 {
-    Task<IEventStorePosition> GetLastPosition();
-    Task Save(IEventStorePosition position);
+    Task<IEventStorePosition> GetLastPositionAsync();
+    Task SaveAsync(IEventStorePosition position);
 }

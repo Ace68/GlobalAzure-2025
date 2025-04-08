@@ -91,8 +91,6 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
             {
                 facade.EventStore.Add(@event);
                 await facade.SaveChangesAsync(cancellationToken);
-                
-                await PublishEventAsync(@event, cancellationToken);
             }
         }
         catch (Exception e)
@@ -106,16 +104,6 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
     public async Task SaveAsync(IAggregate aggregate, Guid commitId, CancellationToken cancellationToken = new())
     {
         await SaveAsync(aggregate, commitId, headers => { }, cancellationToken);
-    }
-
-    private async Task PublishEventAsync(EventRecord @event, CancellationToken cancellationToken = default)
-    {
-        using EventDataBatch eventBatch = await _eventHubProducerClient.CreateBatchAsync(cancellationToken);
-
-        if (!eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(@event)))))
-            throw new Exception($"Event {@event} is too large for the batch and cannot be sent.");
-        
-        await _eventHubProducerClient.SendAsync(eventBatch, cancellationToken);
     }
     
     private static TAggregate? ConstructAggregate<TAggregate>()

@@ -36,7 +36,7 @@ public class EventDispatcher : IHostedService
         var position = await _eventStorePositionRepository.GetLastPosition();
         _lastProcessed = new Position(position.CommitPosition, position.PreparePosition);
         
-        //_timer = new Timer(TimerCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        _timer = new Timer(TimerCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

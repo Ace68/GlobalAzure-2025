@@ -1,10 +1,13 @@
 ﻿using System.Text;
+using Azure.Messaging.EventHubs;
+using Azure.Messaging.EventHubs.Processor;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Muflone.Messages.Events;
 using Muflone.Persistence.Sql.Persistence;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ArgumentNullException = System.ArgumentNullException;
 
 namespace Muflone.Persistence.Sql.Dispatcher;
 
@@ -13,15 +16,16 @@ public class EventDispatcher : IHostedService
     private readonly IEventBus _eventBus;
     private readonly IEventStorePositionRepository _eventStorePositionRepository;
     private readonly SqlOptions _sqlOptions;
+    private readonly EventProcessorClient _eventProcessorClient;
     private readonly ILogger _logger;
     private Position _lastProcessed;
-    
-    private Timer _timer;
-    
-    public EventDispatcher(ILoggerFactory loggerFactory, SqlOptions sqlOptions, IEventBus eventBus, IEventStorePositionRepository eventStorePositionRepository)
+
+    public EventDispatcher(ILoggerFactory loggerFactory, SqlOptions sqlOptions, EventProcessorClient eventProcessorClient,
+        IEventBus eventBus, IEventStorePositionRepository eventStorePositionRepository)
     {
         _logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
         _sqlOptions = sqlOptions ?? throw new ArgumentNullException(nameof(sqlOptions));
+        _eventProcessorClient = eventProcessorClient ?? throw new ArgumentNullException(nameof(eventProcessorClient));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _eventStorePositionRepository = eventStorePositionRepository ?? throw new ArgumentNullException(nameof(eventStorePositionRepository));
         _lastProcessed = new Position(0, 0);
@@ -32,10 +36,37 @@ public class EventDispatcher : IHostedService
         if (cancellationToken.IsCancellationRequested)
             cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("EventDispatcher started");
+        
+        _eventProcessorClient.ProcessEventAsync += EventProcessorClientOnProcessEventAsync;
+        _eventProcessorClient.ProcessErrorAsync += EventProcessorClientOnProcessErrorAsync;
+
+        try
+        {
+            await _eventProcessorClient.StartProcessingAsync(cancellationToken);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
 
         await GetLastPositionAsync();
+    }
 
-        _timer = new Timer(TimerCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    private async Task EventProcessorClientOnProcessEventAsync(ProcessEventArgs eventArgs)
+    {
+        var eventHubMessage = Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
+        var @event = JsonConvert.DeserializeObject<EventRecord>(eventHubMessage);
+        if (@event == null)
+            return;
+        
+        await PublishEvent(@event);
+    }
+    
+    private Task EventProcessorClientOnProcessErrorAsync(ProcessErrorEventArgs arg)
+    {
+        _logger.LogError($"Error in EventProcessorClient: {arg.Exception.Message}");
+        
+        return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
@@ -50,8 +81,6 @@ public class EventDispatcher : IHostedService
 
     private void TimerCallback(object state)
     {
-        _timer.Change(Timeout.Infinite, 0); // Stop the timer
-        
         try
         {
             _logger.LogInformation("Read events at: " + DateTime.UtcNow);
@@ -79,9 +108,9 @@ public class EventDispatcher : IHostedService
 
             });
         }
-        finally
+        catch (Exception ex)
         {
-            _timer.Change(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)); // Restart the timer
+            _logger.LogError(ex, "Error in TimerCallback");
         }
     }
 

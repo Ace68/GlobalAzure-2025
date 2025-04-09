@@ -1,6 +1,9 @@
 ﻿using System.Reflection;
 using System.Text;
+using Azure.Messaging.EventHubs;
+using Azure.Messaging.EventHubs.Producer;
 using Muflone.Core;
+using Muflone.Persistence.Sql.Dispatcher;
 using Muflone.Persistence.Sql.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -9,14 +12,17 @@ using AggregateNotFoundException = Muflone.Core.AggregateNotFoundException;
 
 namespace Muflone.Persistence.Sql.Persistence;
 
-public sealed class SqlRepository(SqlOptions sqlOptions) : IRepository
+public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHubOptions) : IRepository
 {
     private const string EventClrTypeHeader = "EventClrTypeName";
     private const string AggregateClrTypeHeader = "AggregateClrTypeName";
     private const string CommitIdHeader = "CommitId";
     private const string CommitDateHeader = "CommitDate";
 
-    private readonly Func<Type, IDomainId, string> aggregateIdToStreamName;
+    private readonly EventHubProducerClient _eventHubProducerClient = new(
+        eventHubOptions.ConnectionString,
+        eventHubOptions.EventHubName); 
+    private readonly Func<Type, IDomainId, string> _aggregateIdToStreamName;
     private static readonly JsonSerializerSettings SerializerSettings;
 
     static SqlRepository()
@@ -27,8 +33,9 @@ public sealed class SqlRepository(SqlOptions sqlOptions) : IRepository
             ContractResolver = new PrivateContractResolver()
         };
     }
-    
-    public Task<TAggregate?> GetByIdAsync<TAggregate>(IDomainId id, CancellationToken cancellationToken = new()) where TAggregate : class, IAggregate
+
+    public Task<TAggregate?> GetByIdAsync<TAggregate>(IDomainId id, CancellationToken cancellationToken = new())
+        where TAggregate : class, IAggregate
     {
         return GetByIdAsync<TAggregate>(id, int.MaxValue, cancellationToken);
     }
@@ -83,6 +90,8 @@ public sealed class SqlRepository(SqlOptions sqlOptions) : IRepository
             {
                 facade.EventStore.Add(@event);
                 await facade.SaveChangesAsync(cancellationToken);
+                
+                await PublishEventAsync(@event, cancellationToken);
             }
         }
         catch (Exception e)
@@ -98,7 +107,17 @@ public sealed class SqlRepository(SqlOptions sqlOptions) : IRepository
         await SaveAsync(aggregate, commitId, headers => { }, cancellationToken);
     }
     
-    private static TAggregate? ConstructAggregate<TAggregate>()
+    private async Task PublishEventAsync(EventRecord @event, CancellationToken cancellationToken = default)
+    {
+        using EventDataBatch eventBatch = await _eventHubProducerClient.CreateBatchAsync(cancellationToken);
+
+        if (!eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(@event)))))
+            throw new Exception($"Event {@event} is too large for the batch and cannot be sent.");
+        
+        await _eventHubProducerClient.SendAsync(eventBatch, cancellationToken);
+    }
+    
+    private static TAggregate ConstructAggregate<TAggregate>()
     {
         return (TAggregate)Activator.CreateInstance(typeof(TAggregate), true)!;
     }

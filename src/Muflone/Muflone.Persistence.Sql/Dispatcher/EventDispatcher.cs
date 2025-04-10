@@ -42,6 +42,8 @@ public class EventDispatcher : IHostedService
 
         try
         {
+            await GetLastPositionAsync();
+            await AlignEventStorePositionAsync();
             await _eventProcessorClient.StartProcessingAsync(cancellationToken);
         }
         catch (Exception e)
@@ -55,7 +57,10 @@ public class EventDispatcher : IHostedService
     private async Task EventProcessorClientOnProcessEventAsync(ProcessEventArgs eventArgs)
     {
         var eventHubMessage = Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
-        var @event = JsonConvert.DeserializeObject<EventRecord>(eventHubMessage);
+        var messageId = eventHubMessage;
+        await using var facade = new EventStoreFacade(_sqlOptions.ConnectionString);
+        var @event = facade.GetEventByMessageIdAsync(messageId!, eventArgs.CancellationToken);
+        
         if (@event == null)
             return;
         
@@ -79,38 +84,25 @@ public class EventDispatcher : IHostedService
         return Task.CompletedTask;
     }
 
-    private void TimerCallback(object state)
+    private async Task AlignEventStorePositionAsync()
     {
         try
         {
-            _logger.LogInformation("Read events at: " + DateTime.UtcNow);
-            
-            Task.Run(async () => 
-            {
-                try
-                {
-                    await using var facade = new EventStoreFacade(_sqlOptions.ConnectionString);
-                    var readResult = facade.EventStore
-                        .Where(e => e.CommitPosition > _lastProcessed.CommitPosition)
-                        .ToList();
+            await using var facade = new EventStoreFacade(_sqlOptions.ConnectionString);
+            var readResult = facade.EventStore
+                .Where(e => e.CommitPosition > _lastProcessed.CommitPosition)
+                .ToList();
                     
-                    var @event = readResult.FirstOrDefault();
-                    if (@event == null) 
-                        return;
+            var @event = readResult.FirstOrDefault();
+            if (@event == null) 
+                return;
                     
-                    await PublishEvent(@event);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    throw;
-                }
-
-            });
+            await PublishEvent(@event);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in TimerCallback");
+            _logger.LogError($"Error in EventProcessorClient: {ex}");
+            throw;
         }
     }
 
@@ -128,9 +120,6 @@ public class EventDispatcher : IHostedService
     
     private async Task PublishEvent(EventRecord resolvedEvent)
     {
-        if (!(resolvedEvent.CommitPosition > _lastProcessed.CommitPosition))
-            return;
-
         var processedEvent = ProcessRawEvent(resolvedEvent);
         if (processedEvent != null)
         {

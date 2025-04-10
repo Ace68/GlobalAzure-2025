@@ -51,15 +51,13 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
         try
         {
             await using var facade = new EventStoreFacade(sqlOptions.ConnectionString);
-            var readResult = facade.EventStore.Where(
-                e => e.AggregateId.Equals(id.Value))
-                .ToList();
+            var readResult = facade.GetAggregateByIdAsync(id, 0, cancellationToken);
             
-            if (!readResult.Any())
+            if (readResult.Length == 0)
                 throw new AggregateNotFoundException(id, typeof(TAggregate));
 
             foreach (var @event in readResult)
-                aggregate!.ApplyEvent(DeserializeEvent(@event));
+                aggregate.ApplyEvent(DeserializeEvent(@event));
         }
         catch (Exception e)
         {
@@ -111,7 +109,7 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
     {
         using EventDataBatch eventBatch = await _eventHubProducerClient.CreateBatchAsync(cancellationToken);
 
-        if (!eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(@event)))))
+        if (!eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(@event.MessageId))))
             throw new Exception($"Event {@event} is too large for the batch and cannot be sent.");
         
         await _eventHubProducerClient.SendAsync(eventBatch, cancellationToken);

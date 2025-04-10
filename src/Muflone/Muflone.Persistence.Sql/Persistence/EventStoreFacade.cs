@@ -33,7 +33,7 @@ public class EventStoreFacade(string connectionString) : DbContext
         modelBuilder.ApplyConfiguration(new EventStoreMapping());
     }
     
-    public EventRecord[] GetAggregateByIdAsync(IDomainId id,
+    public EventRecord[] GetAggregateStreamByIdAsync(IDomainId id,
         int version = 0,
         CancellationToken cancellationToken = default)
     {

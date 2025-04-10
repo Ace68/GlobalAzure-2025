@@ -5,8 +5,8 @@ using Azure.Messaging.EventHubs.Producer;
 using Muflone.Core;
 using Muflone.Persistence.Sql.Dispatcher;
 using Muflone.Persistence.Sql.Exceptions;
+using Muflone.Persistence.Sql.Helpers;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using AggregateNotFoundException = Muflone.Core.AggregateNotFoundException;
 
@@ -14,11 +14,6 @@ namespace Muflone.Persistence.Sql.Persistence;
 
 public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHubOptions) : IRepository
 {
-    private const string EventClrTypeHeader = "EventClrTypeName";
-    private const string AggregateClrTypeHeader = "AggregateClrTypeName";
-    private const string CommitIdHeader = "CommitId";
-    private const string CommitDateHeader = "CommitDate";
-
     private readonly EventHubProducerClient _eventHubProducerClient = new(
         eventHubOptions.ConnectionString,
         eventHubOptions.EventHubName); 
@@ -51,13 +46,13 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
         try
         {
             await using var facade = new EventStoreFacade(sqlOptions.ConnectionString);
-            var readResult = facade.GetAggregateByIdAsync(id, 0, cancellationToken);
+            var readResult = facade.GetAggregateStreamByIdAsync(id, 0, cancellationToken);
             
             if (readResult.Length == 0)
                 throw new AggregateNotFoundException(id, typeof(TAggregate));
 
             foreach (var @event in readResult)
-                aggregate.ApplyEvent(DeserializeEvent(@event));
+                aggregate.ApplyEvent(SqlPersistenceHelper.DeserializeEvent(@event));
         }
         catch (Exception e)
         {
@@ -72,9 +67,9 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
     {
         var commitHeaders = new Dictionary<string, object>
         {
-            { CommitIdHeader, commitId },
-            { CommitDateHeader, DateTime.UtcNow},
-            { AggregateClrTypeHeader, aggregate.GetType().AssemblyQualifiedName! }
+            { SqlPersistenceHelper.CommitIdHeader, commitId },
+            { SqlPersistenceHelper.CommitDateHeader, DateTime.UtcNow},
+            { SqlPersistenceHelper.AggregateClrTypeHeader, aggregate.GetType().AssemblyQualifiedName! }
         };
         updateHeaders(commitHeaders);
 
@@ -123,18 +118,12 @@ public sealed class SqlRepository(SqlOptions sqlOptions, EventHubOptions eventHu
     private static EventRecord ToEventData(Guid eventId, IAggregate aggregate, object @event, IDictionary<string, object> headers)
     {
         var data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(@event, SerializerSettings));
-        var eventHeaders = new Dictionary<string, object>(headers) { { EventClrTypeHeader, @event.GetType().AssemblyQualifiedName! } };
+        var eventHeaders = new Dictionary<string, object>(headers) { { SqlPersistenceHelper.EventClrTypeHeader, @event.GetType().AssemblyQualifiedName! } };
         var metadata = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(eventHeaders, SerializerSettings));
         var typeName = @event.GetType().Name;
 
         return EventRecord.Create(eventId, aggregate.Id.Value, aggregate.GetType().Name, aggregate.GetType().FullName!,
             typeName, data, metadata, aggregate.Version);
-    }
-    
-    private static object DeserializeEvent(EventRecord resolvedEvent)
-    {
-        var eventClrTypeName = JObject.Parse(Encoding.UTF8.GetString(resolvedEvent.Metadata.ToArray())).Property(EventClrTypeHeader)!.Value;
-        return JsonConvert.DeserializeObject(Encoding.UTF8.GetString(resolvedEvent.Data.ToArray()), Type.GetType(((string)eventClrTypeName)!)!)!;        
     }
     
     #region IDisposable Support

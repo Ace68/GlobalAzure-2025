@@ -1,0 +1,16 @@
+﻿@inherits AggregatesBase
+@using GlobalAzure.Services
+@using MudBlazor
+
+<PageTitle>Muflone - SqlStore</PageTitle>
+
+<MudTable Items="@Aggregates" Hover="true" @ref="MudTable" Striped="true" T="ResolvedAggregate" OnRowClick="RowClickEvent">
+    <HeaderContent>
+        <MudTh>Aggregate Id</MudTh>
+        <MudTh>Aggregate Name</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.AggregateId</MudTd>
+        <MudTd DataLabel="Name">@context.AggregateName</MudTd>
+    </RowTemplate>
+</MudTable>

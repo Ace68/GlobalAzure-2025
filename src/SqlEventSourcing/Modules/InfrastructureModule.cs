@@ -1,5 +1,4 @@
-﻿using Muflone.Persistence.Sql;
-using SqlEventSourcing.Sales.Facade;
+﻿using SqlEventSourcing.Sales.Facade;
 using SqlEventSourcing.Sales.Infrastructure;
 using SqlEventSourcing.Sales.ReadModel;
 
@@ -12,7 +11,6 @@ public sealed class InfrastructureModule : IModule
 
     public IServiceCollection Register(WebApplicationBuilder builder)
     {
-        builder.Services.AddSqlStore(builder.Configuration);
         var azureServiceBusSettings = builder.Configuration.GetSection("BrewUp:AzureServiceBus")
             .Get<AzureServiceBusSettings>()!;
         var salesReadModelConfiguration = builder.Configuration.GetSection("BrewUp:SqlServer")

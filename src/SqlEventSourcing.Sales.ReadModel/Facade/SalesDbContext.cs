@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Muflone.Persistence.Sql.Persistence;
 using SqlEventSourcing.Sales.ReadModel.Dtos;
 using SqlEventSourcing.Sales.ReadModel.Mappings;
-using SqlEventSourcing.Shared.CustomTypes;
 using Availability = SqlEventSourcing.Sales.ReadModel.Dtos.Availability;
 
 namespace SqlEventSourcing.Sales.ReadModel.Facade;

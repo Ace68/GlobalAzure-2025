@@ -7,12 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Muflone\Muflone.Persistence.Sql\Muflone.Persistence.Sql.csproj" />
       <ProjectReference Include="..\SqlEventSourcing.Sales.Domain\SqlEventSourcing.Sales.Domain.csproj" />
       <ProjectReference Include="..\SqlEventSourcing.Sales.ReadModel\SqlEventSourcing.Sales.ReadModel.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Muflone.Persistence.Sql" Version="8.0.4" />
       <PackageReference Include="Muflone.Transport.Azure" Version="8.2.0" />
     </ItemGroup>
 

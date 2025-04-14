@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Muflone;
 using Muflone.Persistence;
+using Muflone.Persistence.Sql;
 using Muflone.Transport.Azure;
 using Muflone.Transport.Azure.Models;
 using SqlEventSourcing.Sales.Infrastructure.Commands;

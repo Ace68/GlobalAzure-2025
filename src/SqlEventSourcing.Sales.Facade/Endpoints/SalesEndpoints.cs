@@ -21,7 +21,7 @@ public static class SalesEndpoints
 		
 		group.MapPut("/{salesOrderId}", HandleSetDeliveryDate)
 			.Produces(StatusCodes.Status400BadRequest)
-			.Produces(StatusCodes.Status201Created)
+			.Produces(StatusCodes.Status204NoContent)
 			.WithName("SetDeliveryDate");
 
 		group.MapGet("/", HandleGetOrders)

@@ -1,0 +1,20 @@
+﻿@inherits AggregateEventsBase
+@using GlobalAzure.Services
+@using MudBlazor
+
+<PageTitle>Muflone - SqlStore</PageTitle>
+
+<MudTable Items="@Events" Hover="true" @ref="MudTable" Striped="true" T="ResolvedEvent" OnRowClick="RowClickEvent">
+    <HeaderContent>
+        <MudTh>Aggregate</MudTh>
+        <MudTh>Event</MudTh>
+        <MudTh>Version</MudTh>
+        <MudTh>Commit</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.AggregateName</MudTd>
+        <MudTd DataLabel="Event">@context.EventType</MudTd>
+        <MudTd DataLabel="Version">@context.Version</MudTd>
+        <MudTd DataLabel="Commit">@context.CommitPosition</MudTd>
+    </RowTemplate>
+</MudTable>

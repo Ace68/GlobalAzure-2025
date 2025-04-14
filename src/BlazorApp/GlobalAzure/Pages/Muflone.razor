@@ -1,0 +1,14 @@
+﻿@inherits MufloneBase
+@using GlobalAzure.Components
+@page "/"
+
+<PageTitle>Muflone - SqlStore</PageTitle>
+
+<div hidden="@HideAggregate">
+    <Aggregates Aggregates="@Aggregates"></Aggregates>    
+</div>
+
+<div hidden="@HideEvents">
+    <AggregateEvents Events="@Events"></AggregateEvents>    
+</div>
+

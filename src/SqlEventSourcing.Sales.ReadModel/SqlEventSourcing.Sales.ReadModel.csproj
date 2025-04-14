@@ -8,7 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Muflone\Muflone.Persistence.Sql\Muflone.Persistence.Sql.csproj" />
       <ProjectReference Include="..\SqlEventSourcing.Sales.SharedKernel\SqlEventSourcing.Sales.SharedKernel.csproj" />
       <ProjectReference Include="..\SqlEventSourcing.Shared\SqlEventSourcing.Shared.csproj" />
     </ItemGroup>
@@ -20,6 +19,7 @@
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
+      <PackageReference Include="Muflone.Persistence.Sql" Version="8.0.4" />
     </ItemGroup>
 
 
